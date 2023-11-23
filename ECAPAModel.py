@@ -22,9 +22,9 @@ class ECAPAModel(nn.Module):
     def __init__(self, lr, lr_decay, C, n_class, m, s, test_step, **kwargs):
         super(ECAPAModel, self).__init__()
         ## ECAPA-TDNN
-        self.speaker_encoder = ECAPA_TDNN(C=C).cuda()
+        self.speaker_encoder = ECAPA_TDNN(C=C)
         ## Classifier
-        self.speaker_loss = AAMsoftmax(n_class=n_class, m=m, s=s).cuda()
+        self.speaker_loss = AAMsoftmax(n_class=n_class, m=m, s=s)
 
         self.optim = torch.optim.Adam(self.parameters(), lr=lr, weight_decay=2e-5)
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optim, step_size=test_step, gamma=lr_decay)
@@ -42,8 +42,8 @@ class ECAPAModel(nn.Module):
         lr = self.optim.param_groups[0]["lr"]
         for num, (data, labels) in enumerate(loader, start=1):
             self.zero_grad()
-            labels = torch.LongTensor(labels).cuda()
-            speaker_embedding = self.speaker_encoder.forward(data.cuda(), aug=True)
+            labels = torch.LongTensor(labels)
+            speaker_embedding = self.speaker_encoder.forward(data, aug=True)
             nloss, prec = self.speaker_loss.forward(speaker_embedding, labels)
             nloss.backward()
             self.optim.step()
@@ -73,7 +73,7 @@ class ECAPAModel(nn.Module):
         for idx, file in tqdm.tqdm(enumerate(setfiles), total=len(setfiles)):
             audio, _ = soundfile.read(os.path.join(eval_path, file))
             # Full utterance
-            data_1 = torch.FloatTensor(numpy.stack([audio], axis=0)).cuda()
+            data_1 = torch.FloatTensor(numpy.stack([audio], axis=0))
 
             # Spliited utterance matrix
             max_audio = 300 * 160 + 240
@@ -85,7 +85,7 @@ class ECAPAModel(nn.Module):
             for asf in startframe:
                 feats.append(audio[int(asf) : int(asf) + max_audio])
             feats = numpy.stack(feats, axis=0).astype(numpy.float)
-            data_2 = torch.FloatTensor(feats).cuda()
+            data_2 = torch.FloatTensor(feats)
             # Speaker embeddings
             with torch.no_grad():
                 embedding_1 = self.speaker_encoder.forward(data_1, aug=False)
@@ -118,7 +118,7 @@ class ECAPAModel(nn.Module):
 
     def load_parameters(self, path):
         self_state = self.state_dict()
-        loaded_state = torch.load(path)
+        loaded_state = torch.load(path,  map_location=torch.device('cpu'))
         for name, param in loaded_state.items():
             origname = name
             if name not in self_state:
